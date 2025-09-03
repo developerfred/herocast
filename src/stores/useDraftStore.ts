@@ -7,7 +7,7 @@ import { create as mutativeCreate, Draft } from 'mutative';
 import { CommandType } from '@/common/constants/commands';
 import { PlusCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { AccountObjectType, useAccountStore } from './useAccountStore';
-import { DraftStatus, DraftType, ParentCastIdType } from '@/common/constants/farcaster';
+import { CastTypeEnum, DraftStatus, DraftType, ParentCastIdType } from '@/common/constants/farcaster';
 import { formatPlaintextToHubCastMessage, getMentionFidsByUsernames, submitCast } from '@/common/helpers/farcaster';
 import { toBytes, toHex } from 'viem';
 import { CastAddBody, CastId, Embed, makeCastAdd, Message, NobleEd25519Signer } from '@farcaster/hub-web';
@@ -212,6 +212,7 @@ interface NewPostStoreProps {
 interface DraftStoreActions {
   updatePostDraft: (draftIdx: number, post: DraftType) => void;
   updateMentionsToFids: (draftIdx: number, mentionsToFids: { [key: string]: string }) => void;
+  updateDraftCastType: (draftIdx: number, castType: CastTypeEnum) => void;
   addNewPostDraft: ({ text, parentCastId, parentUrl, embeds, onSuccess, force }: addNewPostDraftProps) => void;
   addScheduledDraft: ({ draftIdx, scheduledFor, onSuccess }: addScheduledDraftProps) => void;
   removePostDraft: (draftIdx: number, onlyIfEmpty?: boolean) => void;
@@ -223,6 +224,7 @@ interface DraftStoreActions {
   hydrate: () => void;
   openDraftsModal: () => void;
   closeDraftsModal: () => void;
+  
 }
 
 export interface DraftStore extends NewPostStoreProps, DraftStoreActions {}
@@ -300,6 +302,13 @@ const store = (set: StoreSet) => ({
       const copy = [...state.drafts];
       copy.splice(draftIdx, 1, { ...draft, mentionsToFids });
       state.drafts = copy;
+    });
+  },
+  updateDraftCastType: (draftIdx: number, castType: CastTypeEnum) => {
+    set((state) => {
+      if (state.drafts[draftIdx]) {
+        state.drafts[draftIdx].castType = castType;
+      }
     });
   },
   removeEmptyDrafts: () => {

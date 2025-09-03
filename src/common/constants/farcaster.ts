@@ -21,6 +21,7 @@ export type DraftType = {
   status: DraftStatus;
   createdAt: number;
   mentionsToFids?: { [key: string]: string };
+  castType?: CastTypeEnum;
   embeds?: FarcasterEmbed[];
   parentUrl?: string;
   parentCastId?: ParentCastIdType;
@@ -63,6 +64,11 @@ export type CastReactionsType = {
   fids?: number[];
 };
 
+export enum CastTypeEnum {
+  CAST = 'cast',
+  LONG_CAST = 'long_cast'
+}
+
 export type CastType = {
   author: AuthorType;
   hash: string;
@@ -77,4 +83,12 @@ export type CastType = {
   embeds: EmbedType[];
   replies?: { count: number };
   recasts?: { fids: number[]; count: number };
+  type?: CastTypeEnum;
 };
+
+
+export const CAST_TEXT_LIMITS = {
+  SHORT_CAST_MAX_BYTES: 320,
+  LONG_CAST_MAX_BYTES: 1024,
+  PREVIEW_CHARS: 280
+} as const;

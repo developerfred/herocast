@@ -1,3 +1,5 @@
+import { CastTypeEnum } from "../constants/farcaster";
+
 export type AggregatedAnalytics = {
   timestamp: string;
   count: number;
@@ -16,6 +18,7 @@ export type CastData = {
   is_reply: boolean;
   like_count: string;
   recast_count: string;
+  type?: CastTypeEnum;
 };
 
 export type UnfollowData = {

@@ -30,13 +30,15 @@ import type { FarcasterEmbed } from '@mod-protocol/farcaster';
 import { EnhancedDateTimePicker } from '@/components/ui/enhanced-datetime-picker';
 import { toast } from 'sonner';
 import { usePostHog } from 'posthog-js/react';
-import { useTextLength } from '../../helpers/editor';
+import { useTextLength } from '../../helpers/castText';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { isPaidUser } from '@/stores/useUserStore';
 import { MentionList } from '../MentionsList';
 import { useImgurUpload } from '@/common/hooks/useImgurUpload';
 import { getPlanLimitsForPlan } from '@/config/planLimits';
+import { LongCastIndicator } from '@/components/ui/long-cast-indicator'; 
+import { ExpandableText } from '@/components/ui/expandable-text';
 
 const API_URL = process.env.NEXT_PUBLIC_MOD_PROTOCOL_API_URL!;
 const getMentions = getFarcasterMentions(API_URL);
@@ -137,10 +139,15 @@ export default function NewPostEntry({
       onPost?.();
 
       if (scheduleDateTime) {
-        posthog.capture('user_schedule_cast');
+        posthog.capture('user_schedule_cast', {
+          castType: textLengthAnalysis.castType,
+          isLongCast: textLengthAnalysis.isLongCast,
+          textLength: textLengthAnalysis.length
+        });
         await updatePostDraft(draftIdx, {
           ...draft,
           status: DraftStatus.publishing,
+          castType: textLengthAnalysis.castType,
         });
         await addScheduledDraft({
           draftIdx,
@@ -151,7 +158,11 @@ export default function NewPostEntry({
           },
         });
       } else {
-        posthog.capture('user_post_cast');
+        posthog.capture('user_post_cast', {
+          castType: textLengthAnalysis.castType,
+          isLongCast: textLengthAnalysis.isLongCast,
+          textLength: textLengthAnalysis.length
+        });
         await publishPostDraft(draftIdx, account);
       }
       return true;
@@ -301,11 +312,17 @@ export default function NewPostEntry({
   const embeds = getEmbeds();
   const channel = getChannel();
 
+  const textLengthAnalysis = useTextLength({ text });
   const {
     label: textLengthWarning,
     isValid: textLengthIsValid,
     tailwindColor: textLengthTailwind,
-  } = useTextLength({ text });
+    isLongCast,
+    castType,
+    analysis: fullTextAnalysis
+  } = textLengthAnalysis;
+
+
 
   // Memoized mention extraction - only runs when text changes and contains @
   const extractMentionsFromText = useMemo(() => {
@@ -343,6 +360,7 @@ export default function NewPostEntry({
         embeds: newEmbeds,
         parentUrl: channel?.parent_url || undefined,
         mentionsToFids: extractMentionsFromText,
+        castType,
       });
     }, 300);
 
@@ -358,6 +376,7 @@ export default function NewPostEntry({
     draftIdx,
     draft,
     updatePostDraft,
+    castType,
   ]);
 
   useEffect(() => {
@@ -400,7 +419,11 @@ export default function NewPostEntry({
   const getButtonText = () => {
     if (isPublishing) return scheduleDateTime ? 'Scheduling...' : 'Publishing...';
 
-    return `${scheduleDateTime ? 'Schedule' : 'Cast'}${account && hasMultipleActiveAccounts ? ` as ${account.name}` : ''}`;
+    const baseText = scheduleDateTime ? 'Schedule' : 'Cast';
+    const accountSuffix = account && hasMultipleActiveAccounts ? ` as ${account.name}` : '';
+    const castTypeIndicator = isLongCast ? ' (Long)' : '';
+
+    return `${baseText}${castTypeIndicator}${accountSuffix}`;
   };
 
   const scheduledCastCount =
@@ -428,7 +451,13 @@ export default function NewPostEntry({
       <form onSubmit={handleSubmit} className="w-full">
         {isPublishing ? (
           <div className="w-full h-full min-h-[150px]">
-            <Skeleton className="px-2 py-1 w-full h-full min-h-[150px] text-foreground/80">{draft.text}</Skeleton>
+            <Skeleton className="px-2 py-1 w-full h-full min-h-[150px] text-foreground/80">
+              <ExpandableText
+                analysis={fullTextAnalysis}
+                showExpandButton={false}
+                defaultExpanded={false}
+              />
+            </Skeleton>
           </div>
         ) : (
           <div className="p-2 border-slate-200 rounded-lg border">
@@ -473,7 +502,13 @@ export default function NewPostEntry({
             <PhotoIcon className="w-5 h-5" />
             <span className="sr-only md:not-sr-only md:pl-2">{isUploading ? 'Uploading...' : 'Image'}</span>
           </Button>
-          {textLengthWarning && <div className={cn('my-2 ml-2 text-sm', textLengthTailwind)}>{textLengthWarning}</div>}
+          <LongCastIndicator isLongCast={isLongCast} />
+
+          {textLengthWarning && (
+            <div className={cn('my-2 ml-2 text-sm whitespace-nowrap', textLengthTailwind)}>
+              {textLengthWarning}
+            </div>
+          )}
           {onRemove && (
             <Button className="h-9" variant="outline" type="button" onClick={onRemove} disabled={isPublishing}>
               Remove
@@ -556,6 +591,7 @@ export default function NewPostEntry({
                     mentionsToFids: draft.mentionsToFids,
                     timestamp: draft.timestamp,
                     hash: draft.hash,
+                    castType: draft.castType,
                   });
                   // Force re-render of embeds by incrementing key
                   setEditorKey((prev) => prev + 1);

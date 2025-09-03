@@ -22,6 +22,7 @@ import { Address, encodeAbiParameters, toBytes } from 'viem';
 import { publicClient, publicClientTestnet } from './rainbowkit';
 import { mnemonicToAccount } from 'viem/accounts';
 import { isDev } from './env';
+import { analyzeCastText } from './castText';
 
 export const WARPCAST_RECOVERY_PROXY: `0x${string}` = '0x00000000FcB080a4D6c39a9354dA9EB9bC104cd7';
 
@@ -135,6 +136,7 @@ export const submitCast = async ({
   // https://github.com/standard-crypto/farcaster-js/blob/be57dedec70ebadbb55118d3a64143457102adb4/packages/farcaster-js-hub-rest/src/hubRestApiClient.ts#L173
 
   const dataOptions = getDataOptions(fid);
+  const textAnalysis = analyzeCastText(text);
   const castAdd: CastAddBody = {
     text,
     embeds: embeds ?? [],
@@ -142,6 +144,7 @@ export const submitCast = async ({
     mentions: mentions ?? [],
     mentionsPositions: mentionsPositions ?? [],
     parentUrl,
+    type: textAnalysis.type,
   };
   if (parentCastId !== undefined) {
     const parentHashBytes = hexStringToBytes(parentCastId.hash);
